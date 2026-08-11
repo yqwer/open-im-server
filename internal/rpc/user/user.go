@@ -63,6 +63,10 @@ type userServer struct {
 	webhookClient            *webhook.Client
 	groupClient              *rpcli.GroupClient
 	relationClient           *rpcli.RelationClient
+	msgClient                *rpcli.MsgClient
+	conversationClient       *rpcli.ConversationClient
+	authClient               *rpcli.AuthClient
+	pushClient               *rpcli.PushMsgServiceClient
 }
 
 type Config struct {
@@ -107,6 +111,18 @@ func Start(ctx context.Context, config *Config, client registry.SvcDiscoveryRegi
 	if err != nil {
 		return err
 	}
+	conversationConn, err := client.GetConn(ctx, config.Share.RpcRegisterName.Conversation)
+	if err != nil {
+		return err
+	}
+	authConn, err := client.GetConn(ctx, config.Share.RpcRegisterName.Auth)
+	if err != nil {
+		return err
+	}
+	pushConn, err := client.GetConn(ctx, config.Share.RpcRegisterName.Push)
+	if err != nil {
+		return err
+	}
 	msgClient := rpcli.NewMsgClient(msgConn)
 	userCache := redis.NewUserCacheRedis(rdb, &config.LocalCacheConfig, userDB, redis.GetRocksCacheOptions())
 	database := controller.NewUserDatabase(userDB, userCache, mgocli.GetTx())
@@ -119,9 +135,12 @@ func Start(ctx context.Context, config *Config, client registry.SvcDiscoveryRegi
 		userNotificationSender:   NewUserNotificationSender(config, msgClient, WithUserFunc(database.FindWithError)),
 		config:                   config,
 		webhookClient:            webhook.NewWebhookClient(config.WebhooksConfig.URL),
-
-		groupClient:    rpcli.NewGroupClient(groupConn),
-		relationClient: rpcli.NewRelationClient(friendConn),
+		groupClient:              rpcli.NewGroupClient(groupConn),
+		relationClient:           rpcli.NewRelationClient(friendConn),
+		msgClient:                msgClient,
+		conversationClient:       rpcli.NewConversationClient(conversationConn),
+		authClient:               rpcli.NewAuthClient(authConn),
+		pushClient:               rpcli.NewPushMsgServiceClient(pushConn),
 	}
 	pbuser.RegisterUserServer(server, u)
 	return u.db.InitOnce(context.Background(), users)
@@ -134,7 +153,16 @@ func (s *userServer) GetDesignateUsers(ctx context.Context, req *pbuser.GetDesig
 		return nil, err
 	}
 
-	resp.UsersInfo = convert.UsersDB2Pb(users)
+	// Archived and marked-deleted accounts are invisible to normal queries,
+	// they behave like "account cancelled" users.
+	normal := make([]*tablerelation.User, 0, len(users))
+	for _, user := range users {
+		if user.IsNormal() {
+			normal = append(normal, user)
+		}
+	}
+
+	resp.UsersInfo = convert.UsersDB2Pb(normal)
 	return resp, nil
 }
 
@@ -237,6 +265,11 @@ func (s *userServer) AccountCheck(ctx context.Context, req *pbuser.AccountCheckR
 	}
 	userIDs := make(map[string]any, 0)
 	for _, v := range users {
+		// Archived and marked-deleted accounts are invisible to normal queries,
+		// they behave like "account cancelled" users.
+		if !v.IsNormal() {
+			continue
+		}
 		userIDs[v.UserID] = nil
 	}
 	for _, v := range req.CheckUserIDs {

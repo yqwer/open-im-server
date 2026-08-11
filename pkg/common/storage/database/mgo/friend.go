@@ -23,6 +23,7 @@ import (
 
 	"github.com/openimsdk/tools/db/mongoutil"
 	"github.com/openimsdk/tools/db/pagination"
+	"github.com/openimsdk/tools/errs"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -95,6 +96,12 @@ func (f *FriendMgo) Delete(ctx context.Context, ownerUserID string, friendUserID
 	}, func() error {
 		return f.owner.IncrVersion(ctx, ownerUserID, friendUserIDs, model.VersionStateDelete)
 	})
+}
+
+// DeleteOwnerFriendAll removes all friend records owned by the given user.
+func (f *FriendMgo) DeleteOwnerFriendAll(ctx context.Context, ownerUserID string) error {
+	_, err := f.coll.DeleteMany(ctx, bson.M{"owner_user_id": ownerUserID})
+	return errs.Wrap(err)
 }
 
 // UpdateByMap updates specific fields of a friend document using a map.

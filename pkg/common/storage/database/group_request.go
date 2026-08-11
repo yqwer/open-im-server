@@ -24,6 +24,9 @@ import (
 type GroupRequest interface {
 	Create(ctx context.Context, groupRequests []*model.GroupRequest) (err error)
 	Delete(ctx context.Context, groupID string, userID string) (err error)
+	// DeleteAllByUser removes all group requests related to the user
+	// (as applicant, handler or inviter).
+	DeleteAllByUser(ctx context.Context, userID string) (err error)
 	UpdateHandler(ctx context.Context, groupID string, userID string, handledMsg string, handleResult int32) (err error)
 	Take(ctx context.Context, groupID string, userID string) (groupRequest *model.GroupRequest, err error)
 	FindGroupRequests(ctx context.Context, groupID string, userIDs []string) ([]*model.GroupRequest, error)

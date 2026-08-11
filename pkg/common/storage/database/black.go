@@ -23,6 +23,10 @@ import (
 type Black interface {
 	Create(ctx context.Context, blacks []*model.Black) (err error)
 	Delete(ctx context.Context, blacks []*model.Black) (err error)
+	// DeleteOwnerBlackAll removes all black records owned by the given user.
+	DeleteOwnerBlackAll(ctx context.Context, ownerUserID string) (err error)
+	// DeleteBlackAllByBlockUserID removes all black records whose blocked user is the given user.
+	DeleteBlackAllByBlockUserID(ctx context.Context, blockUserID string) (err error)
 	Find(ctx context.Context, blacks []*model.Black) (blackList []*model.Black, err error)
 	Take(ctx context.Context, ownerUserID, blockUserID string) (black *model.Black, err error)
 	FindOwnerBlacks(ctx context.Context, ownerUserID string, pagination pagination.Pagination) (total int64, blacks []*model.Black, err error)

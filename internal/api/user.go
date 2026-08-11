@@ -242,3 +242,47 @@ func (u *UserApi) UpdateNotificationAccountInfo(c *gin.Context) {
 func (u *UserApi) SearchNotificationAccount(c *gin.Context) {
 	a2r.Call(c, user.UserClient.SearchNotificationAccount, u.Client)
 }
+
+func (u *UserApi) GetUserClientConfig(c *gin.Context) {
+	a2r.Call(c, user.UserClient.GetUserClientConfig, u.Client)
+}
+
+func (u *UserApi) SetUserClientConfig(c *gin.Context) {
+	a2r.Call(c, user.UserClient.SetUserClientConfig, u.Client)
+}
+
+func (u *UserApi) DelUserClientConfig(c *gin.Context) {
+	a2r.Call(c, user.UserClient.DelUserClientConfig, u.Client)
+}
+
+func (u *UserApi) PageUserClientConfig(c *gin.Context) {
+	a2r.Call(c, user.UserClient.PageUserClientConfig, u.Client)
+}
+
+// ================== user deletion mechanism (admin) ==================
+
+// AdminArchiveUser archives a user account. Admin permission is enforced in the
+// user RPC by authverify.CheckAdmin.
+func (u *UserApi) AdminArchiveUser(c *gin.Context) {
+	a2r.Call(c, user.UserClient.ArchiveUser, u.Client)
+}
+
+func (u *UserApi) AdminUnarchiveUser(c *gin.Context) {
+	a2r.Call(c, user.UserClient.UnarchiveUser, u.Client)
+}
+
+func (u *UserApi) AdminPermanentDeleteUser(c *gin.Context) {
+	a2r.Call(c, user.UserClient.PermanentDeleteUser, u.Client)
+}
+
+func (u *UserApi) AdminMarkedDeleteUser(c *gin.Context) {
+	a2r.Call(c, user.UserClient.MarkedDeleteUser, u.Client)
+}
+
+func (u *UserApi) AdminGetArchivedUsers(c *gin.Context) {
+	a2r.Call(c, user.UserClient.GetArchivedUsers, u.Client)
+}
+
+func (u *UserApi) AdminGetDeletedUsers(c *gin.Context) {
+	a2r.Call(c, user.UserClient.GetDeletedUsers, u.Client)
+}

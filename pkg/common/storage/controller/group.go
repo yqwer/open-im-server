@@ -97,6 +97,8 @@ type GroupDatabase interface {
 
 	// CreateGroupRequest creates new group join requests.
 	CreateGroupRequest(ctx context.Context, requests []*model.GroupRequest) error
+	// DeleteGroupRequestByUser removes all group requests related to the user.
+	DeleteGroupRequestByUser(ctx context.Context, userID string) error
 	// TakeGroupRequest retrieves a specific group join request.
 	TakeGroupRequest(ctx context.Context, groupID string, userID string) (*model.GroupRequest, error)
 	// FindGroupRequests retrieves multiple group join requests.
@@ -477,6 +479,11 @@ func (g *groupDatabase) CreateGroupRequest(ctx context.Context, requests []*mode
 		}
 		return g.groupRequestDB.Create(ctx, requests)
 	})
+}
+
+// DeleteGroupRequestByUser removes all group requests related to the user.
+func (g *groupDatabase) DeleteGroupRequestByUser(ctx context.Context, userID string) error {
+	return g.groupRequestDB.DeleteAllByUser(ctx, userID)
 }
 
 func (g *groupDatabase) TakeGroupRequest(ctx context.Context, groupID string, userID string) (*model.GroupRequest, error) {

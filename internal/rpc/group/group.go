@@ -1938,8 +1938,17 @@ func (s *groupServer) GetSpecifiedUserGroupRequestInfo(ctx context.Context, req 
 		GroupRequests: make([]*sdkws.GroupRequest, 0, len(requests)),
 	}
 
+	var userInfo *sdkws.UserInfo
+	if len(userInfos) > 0 {
+		userInfo = userInfos[0]
+	}
+	var groupInfo *sdkws.GroupInfo
+	if len(groups) > 0 && len(owners) > 0 {
+		groupInfo = convert.Db2PbGroupInfo(groups[0], owners[0].UserID, groupMemberNum[groups[0].GroupID])
+	}
+
 	for _, request := range requests {
-		resp.GroupRequests = append(resp.GroupRequests, convert.Db2PbGroupRequest(request, userInfos[0], convert.Db2PbGroupInfo(groups[0], owners[0].UserID, groupMemberNum[groups[0].GroupID])))
+		resp.GroupRequests = append(resp.GroupRequests, convert.Db2PbGroupRequest(request, userInfo, groupInfo))
 	}
 
 	resp.Total = uint32(len(requests))

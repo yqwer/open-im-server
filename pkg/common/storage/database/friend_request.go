@@ -28,6 +28,8 @@ type FriendRequest interface {
 	Delete(ctx context.Context, fromUserID, toUserID string) (err error)
 	// Update with zero values
 	UpdateByMap(ctx context.Context, formUserID string, toUserID string, args map[string]any) (err error)
+	// DeleteAllByUser removes all friend requests where the user is either the sender or the receiver.
+	DeleteAllByUser(ctx context.Context, userID string) (err error)
 	// Update multiple records (non-zero values)
 	Update(ctx context.Context, friendRequest *model.FriendRequest) (err error)
 	// Get friend requests sent to a specific user, no error returned if not found
