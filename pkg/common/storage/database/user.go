@@ -42,6 +42,13 @@ type User interface {
 
 	SortQuery(ctx context.Context, userIDName map[string]string, asc bool) ([]*model.User, error)
 
+	// Delete physically deletes a user record by userID.
+	Delete(ctx context.Context, userID string) error
+	// PageByStatus paginates users filtered by account status.
+	PageByStatus(ctx context.Context, status int32, pagination pagination.Pagination) (count int64, users []*model.User, err error)
+	// FindByStatus returns all users with the given account status.
+	FindByStatus(ctx context.Context, status int32) (users []*model.User, err error)
+
 	// CRUD user command
 	AddUserCommand(ctx context.Context, userID string, Type int32, UUID string, value string, ex string) error
 	DeleteUserCommand(ctx context.Context, userID string, Type int32, UUID string) error

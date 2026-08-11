@@ -159,3 +159,44 @@ func (m *msgServer) clearConversation(ctx context.Context, conversationIDs []str
 	}
 	return nil
 }
+
+// PhysicalDeleteUserAllMsg physically deletes all single-chat messages of the user from the
+// server and anonymizes the sender of group-chat messages, so no server-side message data
+// can reveal the deleted account afterwards.
+func (m *msgServer) PhysicalDeleteUserAllMsg(ctx context.Context, req *msg.PhysicalDeleteUserAllMsgReq) (*msg.PhysicalDeleteUserAllMsgResp, error) {
+	if err := authverify.CheckAdmin(ctx, m.config.Share.IMAdminUserID); err != nil {
+		return nil, err
+	}
+	conversationIDs, err := m.ConversationLocalCache.GetConversationIDs(ctx, req.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if len(conversationIDs) == 0 {
+		return &msg.PhysicalDeleteUserAllMsgResp{}, nil
+	}
+	conversations, err := m.conversationClient.GetConversationsByConversationIDs(ctx, conversationIDs)
+	if err != nil {
+		return nil, err
+	}
+	var singleConversationIDs []string
+	var groupConversationIDs []string
+	for _, conv := range conversations {
+		switch conv.ConversationType {
+		case constant.SingleChatType:
+			singleConversationIDs = append(singleConversationIDs, conv.ConversationID)
+		case constant.ReadGroupChatType:
+			groupConversationIDs = append(groupConversationIDs, conv.ConversationID)
+		}
+	}
+	log.ZDebug(ctx, "PhysicalDeleteUserAllMsg", "userID", req.UserID,
+		"singleConversationIDs", singleConversationIDs, "groupConversationIDs", groupConversationIDs)
+	// 1. physically delete single-chat messages (single chat docs are shared by both sides)
+	if err := m.MsgDatabase.DeleteDocsByConversationIDs(ctx, singleConversationIDs); err != nil {
+		return nil, err
+	}
+	// 2. anonymize the sender of group-chat messages
+	if err := m.MsgDatabase.AnonymizeConversationSender(ctx, req.UserID, groupConversationIDs); err != nil {
+		return nil, err
+	}
+	return &msg.PhysicalDeleteUserAllMsgResp{}, nil
+}

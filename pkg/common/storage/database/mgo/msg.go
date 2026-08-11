@@ -3,6 +3,8 @@ package mgo
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/openimsdk/open-im-server/v3/pkg/common/storage/database"
@@ -943,6 +945,54 @@ func (m *MsgMgo) GetRandBeforeMsg(ctx context.Context, ts int64, limit int) ([]*
 
 func (m *MsgMgo) DeleteDoc(ctx context.Context, docID string) error {
 	return mongoutil.DeleteOne(ctx, m.coll, bson.M{"doc_id": docID})
+}
+
+// DeleteDocsByConversationIDs physically deletes all message docs of the given conversations.
+// docID follows the "<conversationID>:<docIndex>" layout so a regex on the prefix is used.
+func (m *MsgMgo) DeleteDocsByConversationIDs(ctx context.Context, conversationIDs []string) error {
+	if len(conversationIDs) == 0 {
+		return nil
+	}
+	quoted := make([]string, 0, len(conversationIDs))
+	for _, id := range conversationIDs {
+		quoted = append(quoted, regexp.QuoteMeta(id))
+	}
+	pattern := "^(" + strings.Join(quoted, "|") + "):"
+	if _, err := m.coll.DeleteMany(ctx, bson.M{"doc_id": bson.M{"$regex": pattern}}); err != nil {
+		return errs.Wrap(err)
+	}
+	return nil
+}
+
+// AnonymizeConversationSender replaces the sender fields of messages sent by userID
+// in the given conversations so the group history no longer exposes the deleted account.
+func (m *MsgMgo) AnonymizeConversationSender(ctx context.Context, userID string, conversationIDs []string) error {
+	if len(conversationIDs) == 0 {
+		return nil
+	}
+	quoted := make([]string, 0, len(conversationIDs))
+	for _, id := range conversationIDs {
+		quoted = append(quoted, regexp.QuoteMeta(id))
+	}
+	pattern := "^(" + strings.Join(quoted, "|") + "):"
+	filter := bson.M{
+		"doc_id":           bson.M{"$regex": pattern},
+		"msgs.msg.send_id": userID,
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"msgs.$[elem].msg.send_id":         model.AnonymizedSenderID,
+			"msgs.$[elem].msg.sender_nickname": model.AnonymizedNickname,
+			"msgs.$[elem].msg.sender_face_url": "",
+		},
+	}
+	opt := options.Update().SetArrayFilters(options.ArrayFilters{
+		Filters: []any{bson.M{"elem.msg.send_id": userID}},
+	})
+	if _, err := m.coll.UpdateMany(ctx, filter, update, opt); err != nil {
+		return errs.Wrap(err)
+	}
+	return nil
 }
 
 func (m *MsgMgo) GetLastMessageSeqByTime(ctx context.Context, conversationID string, time int64) (int64, error) {

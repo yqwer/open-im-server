@@ -388,3 +388,21 @@ Sessionx.vim
 # End of https://www.toptal.com/developers/gitignore/api/go,git,vim,tags,test,emacs,backup,jetbrains
 .idea
 dist/
+
+.omo
+.sisyphus
+
+# ==============================================================================
+# Local workspace overrides (openIM 定制，勿提交本地运维产物)
+# 版本号: 1.1.0
+# 修订日期: 2026-07-31
+# 作者/生成者: Composer
+# 最后修订人: Composer
+# 变更说明:
+#   - 1.0.0: 上游原始 .gitignore（备份见 backup/.gitignore_1.0.0）
+#   - 1.1.0: 忽略本地 backup/、docs/、scripts/（及历史 backup_config/）
+# ==============================================================================
+/backup/
+/backup_config/
+/docs/
+/scripts/

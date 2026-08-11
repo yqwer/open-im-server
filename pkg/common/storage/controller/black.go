@@ -29,6 +29,10 @@ type BlackDatabase interface {
 	Create(ctx context.Context, blacks []*model.Black) (err error)
 	// Delete delete BlackList
 	Delete(ctx context.Context, blacks []*model.Black) (err error)
+	// DeleteOwnerBlackAll removes all black records owned by the given user
+	DeleteOwnerBlackAll(ctx context.Context, ownerUserID string) (err error)
+	// DeleteBlackAllByBlockUserID removes all black records whose blocked user is the given user
+	DeleteBlackAllByBlockUserID(ctx context.Context, blockUserID string) (err error)
 	// FindOwnerBlacks get BlackList list
 	FindOwnerBlacks(ctx context.Context, ownerUserID string, pagination pagination.Pagination) (total int64, blacks []*model.Black, err error)
 	FindBlackInfos(ctx context.Context, ownerUserID string, userIDs []string) (blacks []*model.Black, err error)
@@ -59,6 +63,19 @@ func (b *blackDatabase) Delete(ctx context.Context, blacks []*model.Black) (err 
 		return err
 	}
 	return b.deleteBlackIDsCache(ctx, blacks)
+}
+
+// DeleteOwnerBlackAll removes all black records owned by the given user and clears the cache.
+func (b *blackDatabase) DeleteOwnerBlackAll(ctx context.Context, ownerUserID string) error {
+	if err := b.black.DeleteOwnerBlackAll(ctx, ownerUserID); err != nil {
+		return err
+	}
+	return b.cache.CloneBlackCache().DelBlackIDs(ctx, ownerUserID).ChainExecDel(ctx)
+}
+
+// DeleteBlackAllByBlockUserID removes all black records whose blocked user is the given user.
+func (b *blackDatabase) DeleteBlackAllByBlockUserID(ctx context.Context, blockUserID string) error {
+	return b.black.DeleteBlackAllByBlockUserID(ctx, blockUserID)
 }
 
 // FindOwnerBlacks Get Blacklist List.

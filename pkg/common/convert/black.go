@@ -42,11 +42,13 @@ func BlackDB2Pb(ctx context.Context, blackDBs []*model.Black, f func(ctx context
 			Ex:             blackDB.Ex,
 			OperatorUserID: blackDB.OperatorUserID,
 			BlackUserInfo: &sdkws.PublicUserInfo{
-				UserID:   userInfos[blackDB.BlockUserID].UserID,
-				Nickname: userInfos[blackDB.BlockUserID].Nickname,
-				FaceURL:  userInfos[blackDB.BlockUserID].FaceURL,
-				Ex:       userInfos[blackDB.BlockUserID].Ex,
+				UserID: blackDB.BlockUserID,
 			},
+		}
+		if user, ok := userInfos[blackDB.BlockUserID]; ok {
+			blackPb.BlackUserInfo.Nickname = user.Nickname
+			blackPb.BlackUserInfo.FaceURL = user.FaceURL
+			blackPb.BlackUserInfo.Ex = user.Ex
 		}
 		blackPbs = append(blackPbs, blackPb)
 	}

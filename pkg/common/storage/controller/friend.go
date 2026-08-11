@@ -50,6 +50,10 @@ type FriendDatabase interface {
 
 	// Delete removes a friend or friends from the owner's friend list
 	Delete(ctx context.Context, ownerUserID string, friendUserIDs []string) (err error)
+	// DeleteOwnerFriendAll removes all friend records owned by the given user
+	DeleteOwnerFriendAll(ctx context.Context, ownerUserID string) (err error)
+	// DeleteFriendRequestAllByUser removes all friend requests where the user is involved
+	DeleteFriendRequestAllByUser(ctx context.Context, userID string) (err error)
 
 	// UpdateRemark updates the remark for a friend
 	UpdateRemark(ctx context.Context, ownerUserID, friendUserID, remark string) (err error)
@@ -321,6 +325,19 @@ func (f *friendDatabase) UpdateRemark(ctx context.Context, ownerUserID, friendUs
 		return err
 	}
 	return f.cache.DelFriend(ownerUserID, friendUserID).DelMaxFriendVersion(ownerUserID).ChainExecDel(ctx)
+}
+
+// DeleteOwnerFriendAll removes all friend records owned by the given user and clears the cache.
+func (f *friendDatabase) DeleteOwnerFriendAll(ctx context.Context, ownerUserID string) error {
+	if err := f.friend.DeleteOwnerFriendAll(ctx, ownerUserID); err != nil {
+		return err
+	}
+	return f.cache.DelFriendIDs(ownerUserID).DelMaxFriendVersion(ownerUserID).ChainExecDel(ctx)
+}
+
+// DeleteFriendRequestAllByUser removes all friend requests where the user is either the sender or the receiver.
+func (f *friendDatabase) DeleteFriendRequestAllByUser(ctx context.Context, userID string) error {
+	return f.friendRequest.DeleteAllByUser(ctx, userID)
 }
 
 // PageOwnerFriends retrieves the list of friends for the ownerUserID. It does not return an error if the result is empty.

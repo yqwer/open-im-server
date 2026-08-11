@@ -37,6 +37,11 @@ type Msg interface {
 	RangeUserSendCount(ctx context.Context, start time.Time, end time.Time, group bool, ase bool, pageNumber int32, showNumber int32) (msgCount int64, userCount int64, users []*model.UserCount, dateCount map[string]int64, err error)
 	RangeGroupSendCount(ctx context.Context, start time.Time, end time.Time, ase bool, pageNumber int32, showNumber int32) (msgCount int64, userCount int64, groups []*model.GroupCount, dateCount map[string]int64, err error)
 	DeleteDoc(ctx context.Context, docID string) error
+	// DeleteDocsByConversationIDs physically deletes all message docs of the given conversations.
+	DeleteDocsByConversationIDs(ctx context.Context, conversationIDs []string) error
+	// AnonymizeConversationSender anonymizes the sender fields of messages sent by userID
+	// in the given conversations (used to anonymize group chat history on permanent delete).
+	AnonymizeConversationSender(ctx context.Context, userID string, conversationIDs []string) error
 	GetRandBeforeMsg(ctx context.Context, ts int64, limit int) ([]*model.MsgDocModel, error)
 	GetLastMessageSeqByTime(ctx context.Context, conversationID string, time int64) (int64, error)
 	GetLastMessage(ctx context.Context, conversationID string) (*model.MsgInfoModel, error)

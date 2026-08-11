@@ -33,6 +33,7 @@ import (
 	"github.com/openimsdk/open-im-server/v3/pkg/common/convert"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/servererrs"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/storage/controller"
+	"github.com/openimsdk/open-im-server/v3/pkg/authverify"
 	"github.com/openimsdk/protocol/constant"
 	pbconversation "github.com/openimsdk/protocol/conversation"
 	"github.com/openimsdk/protocol/sdkws"
@@ -100,6 +101,7 @@ func Start(ctx context.Context, config *Config, client discovery.SvcDiscoveryReg
 		userClient:  rpcli.NewUserClient(userConn),
 		groupClient: rpcli.NewGroupClient(groupConn),
 		msgClient:   msgClient,
+		config:      config,
 	})
 	return nil
 }
@@ -810,4 +812,16 @@ func (c *conversationServer) setConversationMinSeqAndLatestMsgDestructTime(ctx c
 	}
 	c.conversationNotificationSender.ConversationChangeNotification(ctx, ownerUserID, []string{conversationID})
 	return nil
+}
+
+// DeleteUserAllConversations removes all conversations owned by the given user.
+// Used by the user deletion mechanism.
+func (c *conversationServer) DeleteUserAllConversations(ctx context.Context, req *pbconversation.DeleteUserAllConversationsReq) (*pbconversation.DeleteUserAllConversationsResp, error) {
+	if err := authverify.CheckAdmin(ctx, c.config.Share.IMAdminUserID); err != nil {
+		return nil, err
+	}
+	if err := c.conversationDatabase.DeleteOwnerUserAllConversations(ctx, req.UserID); err != nil {
+		return nil, err
+	}
+	return &pbconversation.DeleteUserAllConversationsResp{}, nil
 }

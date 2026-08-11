@@ -97,6 +97,10 @@ type CommonMsgDatabase interface {
 
 	DeleteDoc(ctx context.Context, docID string) error
 
+	DeleteDocsByConversationIDs(ctx context.Context, conversationIDs []string) error
+
+	AnonymizeConversationSender(ctx context.Context, userID string, conversationIDs []string) error
+
 	GetLastMessageSeqByTime(ctx context.Context, conversationID string, time int64) (int64, error)
 
 	GetLastMessage(ctx context.Context, conversationIDS []string, userID string) (map[string]*sdkws.MsgData, error)
@@ -737,6 +741,20 @@ func (db *commonMsgDatabase) DeleteDoc(ctx context.Context, docID string) error 
 		return err
 	}
 	return db.msgCache.DelMessageBySeqs(ctx, conversationID, seqs)
+}
+
+func (db *commonMsgDatabase) DeleteDocsByConversationIDs(ctx context.Context, conversationIDs []string) error {
+	if err := db.msgDocDatabase.DeleteDocsByConversationIDs(ctx, conversationIDs); err != nil {
+		return err
+	}
+	for _, conversationID := range conversationIDs {
+		_ = db.msgCache.DelMessageBySeqs(ctx, conversationID, nil)
+	}
+	return nil
+}
+
+func (db *commonMsgDatabase) AnonymizeConversationSender(ctx context.Context, userID string, conversationIDs []string) error {
+	return db.msgDocDatabase.AnonymizeConversationSender(ctx, userID, conversationIDs)
 }
 
 func (db *commonMsgDatabase) GetLastMessageSeqByTime(ctx context.Context, conversationID string, time int64) (int64, error) {

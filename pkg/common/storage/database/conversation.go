@@ -43,4 +43,6 @@ type Conversation interface {
 	GetConversationNotReceiveMessageUserIDs(ctx context.Context, conversationID string) ([]string, error)
 	FindConversationUserVersion(ctx context.Context, userID string, version uint, limit int) (*model.VersionLog, error)
 	FindRandConversation(ctx context.Context, ts int64, limit int) ([]*model.Conversation, error)
+	// DeleteOwnerUserAllConversations removes all conversations owned by the given user.
+	DeleteOwnerUserAllConversations(ctx context.Context, ownerUserID string) error
 }
