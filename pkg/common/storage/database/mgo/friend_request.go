@@ -28,6 +28,7 @@ import (
 
 	"github.com/openimsdk/tools/db/mongoutil"
 	"github.com/openimsdk/tools/db/pagination"
+	"github.com/openimsdk/tools/errs"
 )
 
 func NewFriendRequestMongo(db *mongo.Database) (database.FriendRequest, error) {
@@ -90,6 +91,16 @@ func (f *FriendRequestMgo) Create(ctx context.Context, friendRequests []*model.F
 
 func (f *FriendRequestMgo) Delete(ctx context.Context, fromUserID, toUserID string) (err error) {
 	return mongoutil.DeleteOne(ctx, f.coll, bson.M{"from_user_id": fromUserID, "to_user_id": toUserID})
+}
+
+// DeleteAllByUser removes all friend requests where the user is either the sender or the receiver.
+func (f *FriendRequestMgo) DeleteAllByUser(ctx context.Context, userID string) error {
+	filter := bson.M{"$or": []bson.M{
+		{"from_user_id": userID},
+		{"to_user_id": userID},
+	}}
+	_, err := f.coll.DeleteMany(ctx, filter)
+	return errs.Wrap(err)
 }
 
 func (f *FriendRequestMgo) UpdateByMap(ctx context.Context, formUserID, toUserID string, args map[string]any) (err error) {

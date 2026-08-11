@@ -78,6 +78,8 @@ type ConversationDatabase interface {
 	FindRandConversation(ctx context.Context, ts int64, limit int) ([]*relationtb.Conversation, error)
 
 	DeleteUsersConversations(ctx context.Context, userID string, conversationIDs []string) (err error)
+	// DeleteOwnerUserAllConversations removes all conversations owned by the given user.
+	DeleteOwnerUserAllConversations(ctx context.Context, ownerUserID string) error
 }
 
 func NewConversationDatabase(conversation database.Conversation, cache cache.ConversationCache, tx tx.Tx) ConversationDatabase {
@@ -441,5 +443,22 @@ func (c *conversationDatabase) DeleteUsersConversations(ctx context.Context, use
 			DelUserPinnedConversations(userID)
 
 		return cache.ChainExecDel(ctx)
+	})
+}
+
+// DeleteOwnerUserAllConversations removes all conversations owned by the given user
+// and clears the related cache entries.
+func (c *conversationDatabase) DeleteOwnerUserAllConversations(ctx context.Context, ownerUserID string) error {
+	return c.tx.Transaction(ctx, func(ctx context.Context) error {
+		if err := c.conversationDB.DeleteOwnerUserAllConversations(ctx, ownerUserID); err != nil {
+			return err
+		}
+		return c.cache.CloneConversationCache().
+			DelConversationIDs(ownerUserID).
+			DelConversationVersionUserIDs(ownerUserID).
+			DelConversationNotNotifyMessageUserIDs(ownerUserID).
+			DelUserPinnedConversations(ownerUserID).
+			DelUserConversationIDsHash(ownerUserID).
+			ChainExecDel(ctx)
 	})
 }

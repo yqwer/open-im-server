@@ -199,6 +199,13 @@ func (m *MessageApi) DeleteMsgPhysical(c *gin.Context) {
 	a2r.Call(c, msg.MsgClient.DeleteMsgPhysical, m.Client)
 }
 
+// AdminPhysicalDeleteUserAllMsg physically deletes all messages of a user:
+// single-chat messages are removed and group-chat senders are anonymized.
+// Admin permission is enforced inside the msg RPC.
+func (m *MessageApi) AdminPhysicalDeleteUserAllMsg(c *gin.Context) {
+	a2r.Call(c, msg.MsgClient.PhysicalDeleteUserAllMsg, m.Client)
+}
+
 func (m *MessageApi) getSendMsgReq(c *gin.Context, req apistruct.SendMsg) (sendMsgReq *msg.SendMsgReq, err error) {
 	var data any
 	log.ZDebug(c, "getSendMsgReq", "req", req.Content)

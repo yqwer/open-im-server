@@ -27,6 +27,8 @@ type Friend interface {
 	Create(ctx context.Context, friends []*model.Friend) (err error)
 	// Delete removes specified friends of the owner user.
 	Delete(ctx context.Context, ownerUserID string, friendUserIDs []string) (err error)
+	// DeleteOwnerFriendAll removes all friend records owned by the given user.
+	DeleteOwnerFriendAll(ctx context.Context, ownerUserID string) (err error)
 	// UpdateByMap updates specific fields of a friend document using a map.
 	UpdateByMap(ctx context.Context, ownerUserID string, friendUserID string, args map[string]any) (err error)
 	// UpdateRemark modify remarks.

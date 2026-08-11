@@ -74,10 +74,16 @@ func FriendsDB2Pb(ctx context.Context, friendsDB []*model.Friend, getUsers func(
 			return nil, err
 		}
 
-		friendPb.FriendUser.UserID = users[friend.FriendUserID].UserID
-		friendPb.FriendUser.Nickname = users[friend.FriendUserID].Nickname
-		friendPb.FriendUser.FaceURL = users[friend.FriendUserID].FaceURL
-		friendPb.FriendUser.Ex = users[friend.FriendUserID].Ex
+		if user, ok := users[friend.FriendUserID]; ok {
+			friendPb.FriendUser.UserID = user.UserID
+			friendPb.FriendUser.Nickname = user.Nickname
+			friendPb.FriendUser.FaceURL = user.FaceURL
+			friendPb.FriendUser.Ex = user.Ex
+		} else {
+			// Archived/marked-deleted users are filtered out by GetDesignateUsers,
+			// keep the id only so the rest of the friend record stays visible.
+			friendPb.FriendUser.UserID = friend.FriendUserID
+		}
 		friendPb.CreateTime = friend.CreateTime.Unix()
 		friendPb.IsPinned = friend.IsPinned
 		friendsPb = append(friendsPb, friendPb)
@@ -117,13 +123,9 @@ func FriendRequestDB2Pb(ctx context.Context, friendRequests []*model.FriendReque
 	for _, friendRequest := range friendRequests {
 		toUser := users[friendRequest.ToUserID]
 		fromUser := users[friendRequest.FromUserID]
-		res = append(res, &sdkws.FriendRequest{
+		item := &sdkws.FriendRequest{
 			FromUserID:    friendRequest.FromUserID,
-			FromNickname:  fromUser.GetNickname(),
-			FromFaceURL:   fromUser.GetFaceURL(),
 			ToUserID:      friendRequest.ToUserID,
-			ToNickname:    toUser.GetNickname(),
-			ToFaceURL:     toUser.GetFaceURL(),
 			HandleResult:  friendRequest.HandleResult,
 			ReqMsg:        friendRequest.ReqMsg,
 			CreateTime:    friendRequest.CreateTime.UnixMilli(),
@@ -131,7 +133,16 @@ func FriendRequestDB2Pb(ctx context.Context, friendRequests []*model.FriendReque
 			HandleMsg:     friendRequest.HandleMsg,
 			HandleTime:    friendRequest.HandleTime.UnixMilli(),
 			Ex:            friendRequest.Ex,
-		})
+		}
+		if fromUser != nil {
+			item.FromNickname = fromUser.GetNickname()
+			item.FromFaceURL = fromUser.GetFaceURL()
+		}
+		if toUser != nil {
+			item.ToNickname = toUser.GetNickname()
+			item.ToFaceURL = toUser.GetFaceURL()
+		}
+		res = append(res, item)
 	}
 	return res, nil
 }

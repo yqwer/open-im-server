@@ -828,3 +828,15 @@ func (c *conversationServer) DeleteConversations(ctx context.Context, req *pbcon
 
 	return &pbconversation.DeleteConversationsResp{}, nil
 }
+
+// DeleteUserAllConversations removes all conversations owned by the given user.
+// Used by the user deletion mechanism.
+func (c *conversationServer) DeleteUserAllConversations(ctx context.Context, req *pbconversation.DeleteUserAllConversationsReq) (*pbconversation.DeleteUserAllConversationsResp, error) {
+	if err := authverify.CheckAdmin(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.conversationDatabase.DeleteOwnerUserAllConversations(ctx, req.UserID); err != nil {
+		return nil, err
+	}
+	return &pbconversation.DeleteUserAllConversationsResp{}, nil
+}

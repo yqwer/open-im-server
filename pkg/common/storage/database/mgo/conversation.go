@@ -327,3 +327,9 @@ func (c *ConversationMgo) DeleteUsersConversations(ctx context.Context, userID s
 		return nil
 	})
 }
+
+// DeleteOwnerUserAllConversations removes all conversations owned by the given user.
+func (c *ConversationMgo) DeleteOwnerUserAllConversations(ctx context.Context, ownerUserID string) error {
+	_, err := c.coll.DeleteMany(ctx, bson.M{"owner_user_id": ownerUserID})
+	return errs.Wrap(err)
+}

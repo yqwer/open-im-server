@@ -12,6 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// ----------------------------------------------------------------------------
+// 版本号:    v1.1.0
+// 修订日期:  2026-07-31
+// 作者:      yqwer / Composer (Cursor Agent)
+// 最后修订人: Composer (Cursor Agent)
+// 变更说明:
+//   - v1.1.0: status 缺字段按 normal 处理；Create 显式写入默认 status=0；
+//             普通查询改用 $nin:[archived,deleted]，兼容升级前存量用户
+// ----------------------------------------------------------------------------
+
 package mgo
 
 import (
@@ -30,6 +40,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// normalStatusFilter matches usable accounts: status==0, or the field is
+// missing/null (legacy docs created before the deletion mechanism).
+// Prefer $nin over status:0 so upgrades do not hide pre-existing users.
+func normalStatusFilter() bson.M {
+	return bson.M{
+		"status": bson.M{
+			"$nin": []int32{model.UserStatusArchived, model.UserStatusDeleted},
+		},
+	}
+}
 
 func NewUserMongo(db *mongo.Database) (database.User, error) {
 	coll := db.Collection(database.UserName)
@@ -50,6 +71,16 @@ type UserMgo struct {
 }
 
 func (u *UserMgo) Create(ctx context.Context, users []*model.User) error {
+	// Ensure status is always persisted. Zero-value is UserStatusNormal; write it
+	// explicitly so new docs never rely on "field absent == normal".
+	for _, user := range users {
+		if user == nil {
+			continue
+		}
+		if user.Status != model.UserStatusArchived && user.Status != model.UserStatusDeleted {
+			user.Status = model.UserStatusNormal
+		}
+	}
 	return mongoutil.InsertMany(ctx, u.coll, users)
 }
 
@@ -81,14 +112,17 @@ func (u *UserMgo) TakeByNickname(ctx context.Context, nickname string) (user []*
 }
 
 func (u *UserMgo) Page(ctx context.Context, pagination pagination.Pagination) (count int64, users []*model.User, err error) {
-	return mongoutil.FindPage[*model.User](ctx, u.coll, bson.M{}, pagination)
+	return mongoutil.FindPage[*model.User](ctx, u.coll, normalStatusFilter(), pagination)
 }
 
 func (u *UserMgo) PageFindUser(ctx context.Context, level1 int64, level2 int64, pagination pagination.Pagination) (count int64, users []*model.User, err error) {
 	query := bson.M{
-		"$or": []bson.M{
-			{"app_manger_level": level1},
-			{"app_manger_level": level2},
+		"$and": []bson.M{
+			normalStatusFilter(),
+			{"$or": []bson.M{
+				{"app_manger_level": level1},
+				{"app_manger_level": level2},
+			}},
 		},
 	}
 
@@ -103,9 +137,10 @@ func (u *UserMgo) PageFindUserWithKeyword(
 	nickName string,
 	pagination pagination.Pagination,
 ) (count int64, users []*model.User, err error) {
-	// Initialize the base query with level conditions
+	// Initialize the base query with level and status conditions
 	query := bson.M{
 		"$and": []bson.M{
+			normalStatusFilter(),
 			{"app_manger_level": bson.M{"$in": []int64{level1, level2}}},
 		},
 	}
@@ -131,7 +166,7 @@ func (u *UserMgo) PageFindUserWithKeyword(
 }
 
 func (u *UserMgo) GetAllUserID(ctx context.Context, pagination pagination.Pagination) (int64, []string, error) {
-	return mongoutil.FindPage[string](ctx, u.coll, bson.M{}, pagination, options.Find().SetProjection(bson.M{"_id": 0, "user_id": 1}))
+	return mongoutil.FindPage[string](ctx, u.coll, normalStatusFilter(), pagination, options.Find().SetProjection(bson.M{"_id": 0, "user_id": 1}))
 }
 
 func (u *UserMgo) Exist(ctx context.Context, userID string) (exist bool, err error) {
@@ -144,9 +179,11 @@ func (u *UserMgo) GetUserGlobalRecvMsgOpt(ctx context.Context, userID string) (o
 
 func (u *UserMgo) CountTotal(ctx context.Context, before *time.Time) (count int64, err error) {
 	if before == nil {
-		return mongoutil.Count(ctx, u.coll, bson.M{})
+		return mongoutil.Count(ctx, u.coll, normalStatusFilter())
 	}
-	return mongoutil.Count(ctx, u.coll, bson.M{"create_time": bson.M{"$lt": before}})
+	filter := normalStatusFilter()
+	filter["create_time"] = bson.M{"$lt": before}
+	return mongoutil.Count(ctx, u.coll, filter)
 }
 
 func (u *UserMgo) AddUserCommand(ctx context.Context, userID string, Type int32, UUID string, value string, ex string) error {
@@ -294,6 +331,7 @@ func (u *UserMgo) CountRangeEverydayTotal(ctx context.Context, start time.Time, 
 	pipeline := bson.A{
 		bson.M{
 			"$match": bson.M{
+				"status": bson.M{"$nin": []int32{model.UserStatusArchived, model.UserStatusDeleted}},
 				"create_time": bson.M{
 					"$gte": start,
 					"$lt":  end,
@@ -329,6 +367,27 @@ func (u *UserMgo) CountRangeEverydayTotal(ctx context.Context, start time.Time, 
 	return res, nil
 }
 
+// Delete physically deletes a user record by userID.
+func (u *UserMgo) Delete(ctx context.Context, userID string) error {
+	return mongoutil.DeleteOne(ctx, u.coll, bson.M{"user_id": userID})
+}
+
+// PageByStatus paginates users filtered by account status.
+func (u *UserMgo) PageByStatus(ctx context.Context, status int32, pagination pagination.Pagination) (count int64, users []*model.User, err error) {
+	if status == model.UserStatusNormal {
+		return mongoutil.FindPage[*model.User](ctx, u.coll, normalStatusFilter(), pagination)
+	}
+	return mongoutil.FindPage[*model.User](ctx, u.coll, bson.M{"status": status}, pagination)
+}
+
+// FindByStatus returns all users with the given account status.
+func (u *UserMgo) FindByStatus(ctx context.Context, status int32) (users []*model.User, err error) {
+	if status == model.UserStatusNormal {
+		return mongoutil.Find[*model.User](ctx, u.coll, normalStatusFilter())
+	}
+	return mongoutil.Find[*model.User](ctx, u.coll, bson.M{"status": status})
+}
+
 func (u *UserMgo) SortQuery(ctx context.Context, userIDName map[string]string, asc bool) ([]*model.User, error) {
 	if len(userIDName) == 0 {
 		return nil, nil
@@ -349,7 +408,7 @@ func (u *UserMgo) SortQuery(ctx context.Context, userIDName map[string]string, a
 		sortValue = -1
 	}
 	if len(attached) == 0 {
-		filter := bson.M{"user_id": bson.M{"$in": userIDs}}
+		filter := bson.M{"user_id": bson.M{"$in": userIDs}, "status": bson.M{"$nin": []int32{model.UserStatusArchived, model.UserStatusDeleted}}}
 		opt := options.Find().SetSort(bson.M{"nickname": sortValue})
 		return mongoutil.Find[*model.User](ctx, u.coll, filter, opt)
 	}
@@ -357,6 +416,7 @@ func (u *UserMgo) SortQuery(ctx context.Context, userIDName map[string]string, a
 		{
 			"$match": bson.M{
 				"user_id": bson.M{"$in": userIDs},
+				"status":  bson.M{"$nin": []int32{model.UserStatusArchived, model.UserStatusDeleted}},
 			},
 		},
 		{

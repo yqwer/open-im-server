@@ -66,6 +66,11 @@ type UserDatabase interface {
 
 	SortQuery(ctx context.Context, userIDName map[string]string, asc bool) ([]*model.User, error)
 
+	// DeleteUser physically deletes a user record by userID and clears the cache.
+	DeleteUser(ctx context.Context, userID string) error
+	// PageByStatus paginates users filtered by account status.
+	PageByStatus(ctx context.Context, status int32, pagination pagination.Pagination) (count int64, users []*model.User, err error)
+
 	// CRUD user command
 	AddUserCommand(ctx context.Context, userID string, Type int32, UUID string, value string, ex string) error
 	DeleteUserCommand(ctx context.Context, userID string, Type int32, UUID string) error
@@ -130,6 +135,8 @@ func (u *userDatabase) InitOnce(ctx context.Context, users []*model.User) error 
 }
 
 // FindWithError Get the information of the specified user and return an error if the userID is not found.
+// Archived and marked-deleted users are treated as non-existent so that they look like
+// "account cancelled" to all normal users.
 func (u *userDatabase) FindWithError(ctx context.Context, userIDs []string) (users []*model.User, err error) {
 	userIDs = datautil.Distinct(userIDs)
 
@@ -139,6 +146,14 @@ func (u *userDatabase) FindWithError(ctx context.Context, userIDs []string) (use
 	if err != nil {
 		return
 	}
+
+	normal := users[:0]
+	for _, user := range users {
+		if user.IsNormal() {
+			normal = append(normal, user)
+		}
+	}
+	users = normal
 
 	if len(users) != len(userIDs) {
 		err = errs.ErrRecordNotFound.WrapMsg("userID not found")
@@ -231,6 +246,21 @@ func (u *userDatabase) CountRangeEverydayTotal(ctx context.Context, start time.T
 
 func (u *userDatabase) SortQuery(ctx context.Context, userIDName map[string]string, asc bool) ([]*model.User, error) {
 	return u.userDB.SortQuery(ctx, userIDName, asc)
+}
+
+// DeleteUser physically deletes a user record by userID and clears the cache.
+func (u *userDatabase) DeleteUser(ctx context.Context, userID string) error {
+	return u.tx.Transaction(ctx, func(ctx context.Context) error {
+		if err := u.userDB.Delete(ctx, userID); err != nil {
+			return err
+		}
+		return u.cache.DelUsersInfo(userID).ChainExecDel(ctx)
+	})
+}
+
+// PageByStatus paginates users filtered by account status.
+func (u *userDatabase) PageByStatus(ctx context.Context, status int32, pagination pagination.Pagination) (count int64, users []*model.User, err error) {
+	return u.userDB.PageByStatus(ctx, status, pagination)
 }
 
 func (u *userDatabase) AddUserCommand(ctx context.Context, userID string, Type int32, UUID string, value string, ex string) error {

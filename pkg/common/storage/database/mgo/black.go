@@ -21,6 +21,7 @@ import (
 
 	"github.com/openimsdk/tools/db/mongoutil"
 	"github.com/openimsdk/tools/db/pagination"
+	"github.com/openimsdk/tools/errs"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -72,6 +73,18 @@ func (b *BlackMgo) Delete(ctx context.Context, blacks []*model.Black) (err error
 		return nil
 	}
 	return mongoutil.DeleteMany(ctx, b.coll, b.blacksFilter(blacks))
+}
+
+// DeleteOwnerBlackAll removes all black records owned by the given user.
+func (b *BlackMgo) DeleteOwnerBlackAll(ctx context.Context, ownerUserID string) error {
+	_, err := b.coll.DeleteMany(ctx, bson.M{"owner_user_id": ownerUserID})
+	return errs.Wrap(err)
+}
+
+// DeleteBlackAllByBlockUserID removes all black records whose blocked user is the given user.
+func (b *BlackMgo) DeleteBlackAllByBlockUserID(ctx context.Context, blockUserID string) error {
+	_, err := b.coll.DeleteMany(ctx, bson.M{"block_user_id": blockUserID})
+	return errs.Wrap(err)
 }
 
 func (b *BlackMgo) UpdateByMap(ctx context.Context, ownerUserID, blockUserID string, args map[string]any) (err error) {

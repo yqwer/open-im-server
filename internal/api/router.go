@@ -153,6 +153,24 @@ func newGinRouter(ctx context.Context, client discovery.SvcDiscoveryRegistry, cf
 		userRouterGroup.POST("/del_user_client_config", u.DelUserClientConfig)
 		userRouterGroup.POST("/page_user_client_config", u.PageUserClientConfig)
 	}
+
+	// user deletion mechanism: admin only routes. Token is validated by the global
+	// middleware, and the admin identity is enforced inside the user RPCs.
+	{
+		adminUserGroup := r.Group("/admin/user")
+		adminUserGroup.POST("/archive", u.AdminArchiveUser)
+		adminUserGroup.POST("/unarchive", u.AdminUnarchiveUser)
+		adminUserGroup.POST("/permanent_delete", u.AdminPermanentDeleteUser)
+		adminUserGroup.POST("/marked_delete", u.AdminMarkedDeleteUser)
+
+		adminUsersGroup := r.Group("/admin/users")
+		adminUsersGroup.POST("/archived", u.AdminGetArchivedUsers)
+		adminUsersGroup.POST("/deleted", u.AdminGetDeletedUsers)
+
+		adminMsgApi := NewMessageApi(msg.NewMsgClient(msgConn), rpcli.NewUserClient(userConn), cfg.Share.IMAdminUser.UserIDs)
+		adminMsgGroup := r.Group("/admin/msg")
+		adminMsgGroup.POST("/physical_delete_user_all_msg", adminMsgApi.AdminPhysicalDeleteUserAllMsg)
+	}
 	// friend routing group
 	{
 		f := NewFriendApi(relation.NewFriendClient(friendConn))

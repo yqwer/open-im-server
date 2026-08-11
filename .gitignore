@@ -391,3 +391,8 @@ dist/
 
 .omo
 .sisyphus
+
+/backup/
+/backup_config/
+/docs/
+/scripts/
