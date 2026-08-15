@@ -317,8 +317,13 @@ func (g *NotificationSender) GroupCreatedNotification(ctx context.Context, tips 
 			log.ZError(ctx, stringutil.GetFuncName(1)+" failed", err)
 		}
 	}()
-	if err = g.fillOpUser(ctx, &tips.OpUser, tips.Group.GroupID); err != nil {
-		return
+	// 代建（fork 自研）：CreateGroup 已按（可能被 opUserID 覆盖后的）操作者填好
+	// tips.OpUser 时，不再用令牌用户（管理账号）覆盖，保证"以实际创建人名义建群"
+	// 的群创建通知归属正确；tips.OpUser 为空则沿用原逻辑（令牌用户/管理员兜底）。
+	if tips.OpUser == nil {
+		if err = g.fillOpUser(ctx, &tips.OpUser, tips.Group.GroupID); err != nil {
+			return
+		}
 	}
 	g.setVersion(ctx, &tips.GroupMemberVersion, &tips.GroupMemberVersionID, database.GroupMemberVersionName, tips.Group.GroupID)
 	g.Notification(ctx, mcontext.GetOpUserID(ctx), tips.Group.GroupID, constant.GroupCreatedNotification, tips, notification.WithSendMessage(SendMessage))

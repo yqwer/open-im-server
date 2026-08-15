@@ -216,6 +216,17 @@ func (s *groupServer) CreateGroup(ctx context.Context, req *pbgroup.CreateGroupR
 	}
 	userIDs := append(append(req.MemberUserIDs, req.AdminUserIDs...), req.OwnerUserID)
 	opUserID := mcontext.GetOpUserID(ctx)
+	// 代建（fork 自研）：管理员可传 req.OpUserID 覆盖操作者身份，实现
+	// "以实际创建人名义建群"（如 SCC 建群时传 ownerUserID 代建），使群创建
+	// 通知(opUser)与成员 OperatorUserID/InviterUserID 归到真实创建人名下；
+	// 非管理员一律沿用令牌身份，杜绝冒名。req.OpUserID 会随 userIDs 参与
+	// 用户存在性校验，非法 ID 自然报 "user not found"。
+	if req.OpUserID != "" {
+		if err := authverify.CheckAdmin(ctx); err != nil {
+			return nil, err
+		}
+		opUserID = req.OpUserID
+	}
 	if !datautil.Contain(opUserID, userIDs...) {
 		userIDs = append(userIDs, opUserID)
 	}
