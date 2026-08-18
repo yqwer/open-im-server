@@ -36,7 +36,7 @@ import (
 // dismissed directly because the owner account is being deleted. Group requests
 // related to the user are cleaned up as well.
 func (s *groupServer) QuitUserAllGroups(ctx context.Context, req *pbgroup.QuitUserAllGroupsReq) (*pbgroup.QuitUserAllGroupsResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	userID := req.UserID

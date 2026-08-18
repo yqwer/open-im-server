@@ -34,7 +34,7 @@ import (
 // CleanUserAllRelations removes all relations of a user: friends (bidirectional),
 // friend requests and blacks (bidirectional). Used by the user deletion mechanism.
 func (s *friendServer) CleanUserAllRelations(ctx context.Context, req *relation.CleanUserAllRelationsReq) (*relation.CleanUserAllRelationsResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	userID := req.UserID

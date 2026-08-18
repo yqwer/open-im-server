@@ -415,7 +415,7 @@ func (c *conversationDatabase) DeleteUsersConversations(ctx context.Context, use
 			DelConversationIDs(userID).
 			DelUserConversationIDsHash(userID).
 			DelConversationNotNotifyMessageUserIDs(userID).
-			DelUserPinnedConversations(userID)
+			DelConversationPinnedMessageUserIDs(userID)
 
 		return cache.ChainExecDel(ctx)
 	})
@@ -432,7 +432,7 @@ func (c *conversationDatabase) DeleteOwnerUserAllConversations(ctx context.Conte
 			DelConversationIDs(ownerUserID).
 			DelConversationVersionUserIDs(ownerUserID).
 			DelConversationNotNotifyMessageUserIDs(ownerUserID).
-			DelUserPinnedConversations(ownerUserID).
+			DelConversationPinnedMessageUserIDs(ownerUserID).
 			DelUserConversationIDsHash(ownerUserID).
 			ChainExecDel(ctx)
 	})

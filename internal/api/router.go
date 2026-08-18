@@ -138,7 +138,7 @@ func newGinRouter(ctx context.Context, client discovery.SvcDiscoveryRegistry, co
 		adminUsersGroup.POST("/archived", u.AdminGetArchivedUsers)
 		adminUsersGroup.POST("/deleted", u.AdminGetDeletedUsers)
 
-		adminMsgApi := NewMessageApi(msg.NewMsgClient(msgConn), rpcli.NewUserClient(userConn), cfg.Share.IMAdminUser.UserIDs)
+		adminMsgApi := NewMessageApi(msg.NewMsgClient(msgConn), rpcli.NewUserClient(userConn), config.Share.IMAdminUserID)
 		adminMsgGroup := r.Group("/admin/msg")
 		adminMsgGroup.POST("/physical_delete_user_all_msg", adminMsgApi.AdminPhysicalDeleteUserAllMsg)
 	}

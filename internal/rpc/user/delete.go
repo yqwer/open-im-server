@@ -84,7 +84,7 @@ func (s *userServer) checkArchived(user *model.User, userID string) error {
 
 // ArchiveUser archives a normal user: mark the account archived and kick every device offline.
 func (s *userServer) ArchiveUser(ctx context.Context, req *pbuser.ArchiveUserReq) (*pbuser.ArchiveUserResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	operatorID := mcontext.GetOpUserID(ctx)
@@ -114,7 +114,7 @@ func (s *userServer) ArchiveUser(ctx context.Context, req *pbuser.ArchiveUserReq
 
 // UnarchiveUser restores an archived user back to the normal state.
 func (s *userServer) UnarchiveUser(ctx context.Context, req *pbuser.UnarchiveUserReq) (*pbuser.UnarchiveUserResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	operatorID := mcontext.GetOpUserID(ctx)
@@ -142,7 +142,7 @@ func (s *userServer) UnarchiveUser(ctx context.Context, req *pbuser.UnarchiveUse
 // cleaned up: relations, groups, conversations, push tokens and messages, and
 // finally the user record itself is physically removed.
 func (s *userServer) PermanentDeleteUser(ctx context.Context, req *pbuser.PermanentDeleteUserReq) (*pbuser.PermanentDeleteUserResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	operatorID := mcontext.GetOpUserID(ctx)
@@ -187,7 +187,7 @@ func (s *userServer) PermanentDeleteUser(ctx context.Context, req *pbuser.Perman
 // MarkedDeleteUser marks an archived user as deleted. Relations/groups/conversations
 // are cleaned up but messages are kept, and the userID becomes locked forever.
 func (s *userServer) MarkedDeleteUser(ctx context.Context, req *pbuser.MarkedDeleteUserReq) (*pbuser.MarkedDeleteUserResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	operatorID := mcontext.GetOpUserID(ctx)
@@ -234,7 +234,7 @@ func (s *userServer) MarkedDeleteUser(ctx context.Context, req *pbuser.MarkedDel
 
 // GetArchivedUsers paginates archived users.
 func (s *userServer) GetArchivedUsers(ctx context.Context, req *pbuser.GetArchivedUsersReq) (*pbuser.GetArchivedUsersResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	total, users, err := s.db.PageByStatus(ctx, model.UserStatusArchived, req.Pagination)
@@ -246,7 +246,7 @@ func (s *userServer) GetArchivedUsers(ctx context.Context, req *pbuser.GetArchiv
 
 // GetDeletedUsers paginates marked-deleted users.
 func (s *userServer) GetDeletedUsers(ctx context.Context, req *pbuser.GetDeletedUsersReq) (*pbuser.GetDeletedUsersResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	total, users, err := s.db.PageByStatus(ctx, model.UserStatusDeleted, req.Pagination)

@@ -222,7 +222,7 @@ func (s *groupServer) CreateGroup(ctx context.Context, req *pbgroup.CreateGroupR
 	// 非管理员一律沿用令牌身份，杜绝冒名。req.OpUserID 会随 userIDs 参与
 	// 用户存在性校验，非法 ID 自然报 "user not found"。
 	if req.OpUserID != "" {
-		if err := authverify.CheckAdmin(ctx); err != nil {
+		if err := authverify.CheckAdmin(ctx, s.config.Share.IMAdminUserID); err != nil {
 			return nil, err
 		}
 		opUserID = req.OpUserID

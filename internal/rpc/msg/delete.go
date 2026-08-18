@@ -161,7 +161,7 @@ func (m *msgServer) clearConversation(ctx context.Context, conversationIDs []str
 // server and anonymizes the sender of group-chat messages, so no server-side message data
 // can reveal the deleted account afterwards.
 func (m *msgServer) PhysicalDeleteUserAllMsg(ctx context.Context, req *msg.PhysicalDeleteUserAllMsgReq) (*msg.PhysicalDeleteUserAllMsgResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, m.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	conversationIDs, err := m.ConversationLocalCache.GetConversationIDs(ctx, req.UserID)

@@ -29,6 +29,7 @@ import (
 	"github.com/openimsdk/open-im-server/v3/pkg/msgprocessor"
 	"github.com/openimsdk/tools/db/redisutil"
 
+	"github.com/openimsdk/open-im-server/v3/pkg/authverify"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/convert"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/servererrs"
 	"github.com/openimsdk/open-im-server/v3/pkg/common/storage/controller"
@@ -96,6 +97,7 @@ func Start(ctx context.Context, config *Config, client discovery.SvcDiscoveryReg
 		conversationNotificationSender: NewConversationNotificationSender(&config.NotificationConfig, msgClient),
 		conversationDatabase: controller.NewConversationDatabase(conversationDB,
 			redis.NewConversationRedis(rdb, &config.LocalCacheConfig, redis.GetRocksCacheOptions(), conversationDB), mgocli.GetTx()),
+		config:      config,
 		userClient:  rpcli.NewUserClient(userConn),
 		groupClient: rpcli.NewGroupClient(groupConn),
 		msgClient:   msgClient,
@@ -787,60 +789,10 @@ func (c *conversationServer) setConversationMinSeqAndLatestMsgDestructTime(ctx c
 	return nil
 }
 
-func (c *conversationServer) DeleteConversations(ctx context.Context, req *pbconversation.DeleteConversationsReq) (resp *pbconversation.DeleteConversationsResp, err error) {
-	if err := authverify.CheckAccess(ctx, req.OwnerUserID); err != nil {
-		return nil, err
-	}
-	if req.NeedDeleteTime == 0 && len(req.ConversationIDs) == 0 {
-		return nil, errs.ErrArgs.WrapMsg("need_delete_time or conversationIDs need be set")
-	}
-
-	if req.NeedDeleteTime != 0 && len(req.ConversationIDs) != 0 {
-		return nil, errs.ErrArgs.WrapMsg("need_delete_time and conversationIDs cannot both be set")
-	}
-
-	var needDeleteConversationIDs []string
-
-	if len(req.ConversationIDs) == 0 {
-		deleteTimeThreshold := time.Now().AddDate(0, 0, -int(req.NeedDeleteTime)).UnixMilli()
-		conversationIDs, err := c.conversationDatabase.GetConversationIDs(ctx, req.OwnerUserID)
-		if err != nil {
-			return nil, err
-		}
-		latestMsgs, err := c.msgClient.GetLastMessage(ctx, &msg.GetLastMessageReq{
-			UserID:          req.OwnerUserID,
-			ConversationIDs: conversationIDs,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		for conversationID, msg := range latestMsgs.Msgs {
-			if msg.SendTime < deleteTimeThreshold {
-				needDeleteConversationIDs = append(needDeleteConversationIDs, conversationID)
-			}
-		}
-
-		if len(needDeleteConversationIDs) == 0 {
-			return &pbconversation.DeleteConversationsResp{}, nil
-		}
-	} else {
-		needDeleteConversationIDs = req.ConversationIDs
-	}
-
-	if err := c.conversationDatabase.DeleteUsersConversations(ctx, req.OwnerUserID, needDeleteConversationIDs); err != nil {
-		return nil, err
-	}
-
-	// c.conversationNotificationSender.ConversationDeleteNotification(ctx, req.OwnerUserID, needDeleteConversationIDs)
-
-	return &pbconversation.DeleteConversationsResp{}, nil
-}
-
 // DeleteUserAllConversations removes all conversations owned by the given user.
 // Used by the user deletion mechanism.
 func (c *conversationServer) DeleteUserAllConversations(ctx context.Context, req *pbconversation.DeleteUserAllConversationsReq) (*pbconversation.DeleteUserAllConversationsResp, error) {
-	if err := authverify.CheckAdmin(ctx); err != nil {
+	if err := authverify.CheckAdmin(ctx, c.config.Share.IMAdminUserID); err != nil {
 		return nil, err
 	}
 	if err := c.conversationDatabase.DeleteOwnerUserAllConversations(ctx, req.UserID); err != nil {
