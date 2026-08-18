@@ -35,6 +35,14 @@ deployments/charts/generated-configs/
 .env
 config/config.yaml
 config/notification.yaml
+# 工作区本地部署覆盖（内网地址 / 密钥）。官方模板仍入库；
+# 本机已跟踪文件用 skip-worktree 屏蔽本地改动，避免误提交。
+config/discovery.yml
+config/kafka.yml
+config/minio.yml
+config/mongodb.yml
+config/redis.yml
+config/webhooks.yml
 
 ### OpenIM deploy ###
 deployments/openim-server/charts
@@ -392,7 +400,6 @@ dist/
 .omo
 .sisyphus
 
-/backup/
-/backup_config/
+/_backup/
 /docs/
 /scripts/
